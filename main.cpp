@@ -83,6 +83,8 @@ int main(int argc, char* argv[], char* envp[])
     initMaterials();
     initScene();
 
+    glEnable(GL_LIGHTING);
+    glEnable(GL_LIGHT0);
     //z-buffer
     glDepthFunc(GL_LESS);
     glEnable(GL_DEPTH_TEST);
