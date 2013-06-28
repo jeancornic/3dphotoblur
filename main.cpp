@@ -216,7 +216,6 @@ void initLights()
  */
 void initMaterials()
 {
-/*
     GLfloat am[4] = {0.7f, 0.7f, 0.7f, 1.0f};
     glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, am);
 
@@ -228,7 +227,7 @@ void initMaterials()
 
     float shininess = 0.1f;
     glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess * 128.0);
-    */
+    
 }
 
 /**

@@ -28,7 +28,7 @@ void main(void)
             
             float shininess = gl_FrontMaterial.shininess;
 
-            specularI   = pow( max(0.0, dot(R,-position)), shininess ) *
+            specularI   = pow( max(0.0, dot(R, -position)), shininess ) *
                 gl_FrontMaterial.specular * gl_LightSource[i].specular;
         }
 
