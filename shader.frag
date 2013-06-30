@@ -1,11 +1,16 @@
 #define NUM_LIGHTS 1
+uniform float near;
+uniform float far;
 
 varying vec3 normal;
 varying vec3 position;
 
+
+
 void main(void)
 {
-    //
+    //depth
+    float depth = length(position) / (far - near);
     vec4 finalC = vec4(0,0,0,1);
 
     vec4 baseC  = gl_Color; //Or textured

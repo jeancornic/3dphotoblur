@@ -1,5 +1,7 @@
 #define NUM_LIGHTS 1
 
+
+
 varying vec3 normal;
 varying vec3 position;
 

@@ -53,7 +53,8 @@ static bool keyStates[256] = {};
 static int polygonMode = 0;
 static int shaderMode = 3; 
 static int movingMode = 0;
-
+static float focal = 2;
+static float aperture = 2;
 /**
  * Main function
  * start display loop
@@ -113,6 +114,10 @@ void display()
     
     if (shaderMode) shaderProgram->bind();
     
+    GLuint programId    = shaderProgram->getShaderProgramId(); 
+    GLuint nearLoc      = glGetUniformLocation(programId, "near");
+    GLuint farLoc       = glGetUniformLocation(programId, "far");
+
     /**
      * Drawing floor
      */
@@ -173,7 +178,7 @@ void idle () {
         FPS = counter;
         counter = 0;
         static char winTitle [64];
-        sprintf (winTitle, "3d - FPS: %d", FPS);
+        sprintf (winTitle, "3d - FPS: %d, Focal: %f, Aperture: %f", FPS, focal, aperture);
         glutSetWindowTitle (winTitle);
         lastTime = currentTime;
     }
@@ -259,6 +264,7 @@ void keyboardFunc(unsigned char key, int x, int y)
 {
     keyStates[(int)key]  = true;
 
+    // W
     if ((int)key == 119) {
         if (polygonMode == 0) {
             glPolygonMode( GL_FRONT_AND_BACK, GL_LINE );
@@ -295,6 +301,8 @@ void keyboardFunc(unsigned char key, int x, int y)
 void keyboardUpFunc(unsigned char key, int x, int y)
 {
     keyStates[(int)key]  = false;
+
+    printf("%d\n", (int)key);
 }
 
 void specialFunc(int key, int x, int y)
@@ -337,6 +345,18 @@ void handleKeyStates()
     if(keyStates[122]) {
         camera->zoom(dRho);
     }
+    
+    // O : foal + / P : -
+    if (keyStates[111]) {
+        focal += 0.1;
+    }
+
+    if (keyStates[112]) {
+        focal -= 0.1;
+
+        if (focal < 0) focal = 0;
+    }
+
     
     camera->computePosition();
 }
