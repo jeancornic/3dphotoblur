@@ -98,10 +98,7 @@ int main(int argc, char* argv[], char* envp[])
 
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
-    //z-buffer
-    glDepthFunc(GL_LESS);
-    glEnable(GL_DEPTH_TEST);
-
+    
     camera  = new Camera();
 
     printHelp();
@@ -117,28 +114,30 @@ int main(int argc, char* argv[], char* envp[])
 void display()
 {
     handleKeyStates();
-    //glClearColor(1.0f,1.0f,1.0f,1.0f);
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    
+    //z-buffer
+    glDepthFunc(GL_LESS);
+    glEnable(GL_DEPTH_TEST);
 
     //Position lights
     initLights();
-    camera->apply();
     
-    //glBindTexture(GL_TEXTURE_2D, texIdFBO);
-    //glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texIdFBO);
+    glActiveTexture(GL_TEXTURE0);
 
-    //glBindFramebuffer(GL_FRAMEBUFFER, idFBO);
-    
-    //View position
+    glBindFramebuffer(GL_FRAMEBUFFER, idFBO);
+    glClearColor(1.0f,1.0f,1.0f,1.0f);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    camera->apply();
     
     if (shaderMode) shaderProgram->bind();
 
     GLuint programId    = shaderProgram->getShaderProgramId(); 
-    GLuint nearLoc      = glGetUniformLocation(programId, "near");
-    GLuint farLoc       = glGetUniformLocation(programId, "far");
+    //GLuint nearLoc      = glGetUniformLocation(programId, "near");
+    //GLuint farLoc       = glGetUniformLocation(programId, "far");
     GLuint texScaleLoc  = glGetUniformLocation(programId, "texScale"); 
     GLuint texOffLoc    = glGetUniformLocation(programId, "texOffset"); 
-    GLuint uvALoc       = glGetAttribLocation(programId, "uvA");
+ //   GLuint uvALoc       = glGetAttribLocation(programId, "uvA");
 
     /**
      * Drawing floor
@@ -156,14 +155,11 @@ void display()
     glNormal3f(0,1.0f,0);
     glColor3f(0.5, 0.5, 0.5);
     glBegin(GL_QUADS);
-        glVertexAttrib2f(uvALoc,0,0); glVertex3f(10,-10,0);
-        glVertexAttrib2f(uvALoc, 1,0); glVertex3f(-10,-10,0);
-        glVertexAttrib2f(uvALoc, 1,0.75); glVertex3f(-10,-10,15);
-        glVertexAttrib2f(uvALoc, 0,0.75); glVertex3f(10,-10,15);
+        glVertex3f(10,-10,0);
+        glVertex3f(-10,-10,0);
+        glVertex3f(-10,-10,15);
+        glVertex3f(10,-10,15);
     glEnd();
-    
-    //shaderProgram->unbind();
-    //if (shaderMode) shaderProgram->bind();
     
     glColor3f(1.0, 0, 0);
     glTranslatef(5,2,2);
@@ -171,7 +167,41 @@ void display()
 
     glTranslatef(-10,-4,-2);
     glutSolidCone(3, 5, 20, 20);
+    
     shaderProgram->unbind();
+    
+    /*
+     * Second PASS
+     */
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    
+    glClearColor(0,0,0,1.0f);
+    glDisable(GL_DEPTH_TEST);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+    gluLookAt(0, 20, 5, 0, -20, -5, 0, 0, 1);
+   
+    if (shaderMode) postShaderProgram->bind();
+    
+    GLuint postProgramId    = postShaderProgram->getShaderProgramId(); 
+    //GLuint nearLoc      = glGetUniformLocation(programId, "near");
+    //GLuint farLoc       = glGetUniformLocation(programId, "far");
+//    GLuint texScaleLoc  = glGetUniformLocation(programId, "texScale"); 
+//    GLuint texOffLoc    = glGetUniformLocation(programId, "texOffset"); 
+    GLuint imageTexLoc  = glGetUniformLocation(programId, "imageTex");
+    glUniform1i(imageTexLoc, 0);
+    GLuint uvALoc       = glGetAttribLocation(postProgramId, "uvA");
+
+    glNormal3f(0,0,1);
+    glColor3f(0.5, 0.5, 0.5);
+    glBegin(GL_QUADS);
+        glVertexAttrib2f(uvALoc, 0, 0); glVertex3f(10,10,0);
+        glVertexAttrib2f(uvALoc, 1,0); glVertex3f(-10,10,0);
+        glVertexAttrib2f(uvALoc, 1,1); glVertex3f(-10,-10,0);
+        glVertexAttrib2f(uvALoc, 0,1); glVertex3f(10,-10,0);
+    glEnd();
 
     glutSwapBuffers();
     glutPostRedisplay();

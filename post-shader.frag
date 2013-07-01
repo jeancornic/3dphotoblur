@@ -1,11 +1,13 @@
 #define NUM_LIGHTS 1
-uniform float near;
-uniform float far;
 
 //Depth of field parameters
+uniform float near;
+uniform float far;
 uniform float focus;
 uniform float blurCoeff;
 uniform float PPM;
+
+uniform sampler2D imageTex;
 
 varying vec3 normal;
 varying vec3 position;
@@ -26,6 +28,8 @@ void main(void)
 {
     //depth
     float depth = length(position) / (far - near);
+
+    /*
     vec4 finalC = vec4(0,0,0,1);
 
     vec4 baseC  = gl_Color; //Or textured
@@ -56,4 +60,7 @@ void main(void)
     }
    
     gl_FragColor    = finalC;
+    */
+
+    gl_FragColor    = vec4(texture2D(imageTex, uv.xy).xyz, 1);
 }

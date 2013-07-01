@@ -1,8 +1,4 @@
 #define NUM_LIGHTS 1
-
-uniform vec2 texOffset;
-uniform vec2 texScale;
-
 attribute vec2 uvA;
 
 varying vec3 normal;
@@ -16,8 +12,8 @@ void main(void)
     normal          = normalize(gl_NormalMatrix * gl_Normal);
     position        = normalize(position);
 
-    uv              = texOffset + uvA * texScale;
-
+    uv              = uvA;
+    
     gl_Position     = ftransform();
     gl_FrontColor   = gl_Color;
 }

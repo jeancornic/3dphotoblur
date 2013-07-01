@@ -1,35 +1,13 @@
 #define NUM_LIGHTS 1
-uniform float near;
-uniform float far;
-
-//Depth of field parameters
-uniform float focus;
-uniform float blurCoeff;
-uniform float PPM;
 
 varying vec3 normal;
 varying vec3 position;
 varying vec2 uv;
 
-//layout (location = 0) out vec4 finalC;
-
-float getBlurDiameter(float depth)
-{ 
-    float d = depth * (far - near);
-    float diff = abs(d - focus);
-    float xdd = (d < focus) ? (focus - diff) : (focus + diff); 
-    
-    float b = blurCoeff * (diff / xdd); 
-    
-    return b * PPM; 
-}
+layout (location = 0) out vec4 finalC;
 
 void main(void)
 {
-    //depth
-    float depth = length(position) / (far - near);
-    vec4 finalC = vec4(0,0,0,1);
-
     vec4 baseC  = gl_Color; //Or textured
     
     for (int i = 0; i < NUM_LIGHTS; i++) {
@@ -56,6 +34,4 @@ void main(void)
 
         finalC  += ambientI * baseC + diffuseI * baseC + specularI;
     }
-
-    gl_FragColor = finalC;
 }
