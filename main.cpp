@@ -24,8 +24,17 @@ static float t;
  * texture ids container
  */
 static GLuint texIDs[5];
+static GLuint texIdFBO;
+static GLuint idDepthBuffer;
+
+/**
+ *
+ */
+static GLuint idFBO;
 
 static ShaderProgram * shaderProgram;
+static ShaderProgram * postShaderProgram;
+
 static Camera * camera;
 
 void initLights();
@@ -33,6 +42,7 @@ void initShaders();
 void initTextures();
 void initMaterials();
 void initScene();
+void initFBO();
 
 //display
 void display();
@@ -54,7 +64,7 @@ static int polygonMode = 0;
 static int shaderMode = 3; 
 static int movingMode = 0;
 static float focal = 2;
-static float aperture = 2;
+static float fStop = 2.8;
 /**
  * Main function
  * start display loop
@@ -79,10 +89,12 @@ int main(int argc, char* argv[], char* envp[])
     
     GLenum glewErr = glewInit();
 
+    initFBO();
     initShaders();
     initTextures();
     initMaterials();
     initScene();
+    
 
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
@@ -105,35 +117,53 @@ int main(int argc, char* argv[], char* envp[])
 void display()
 {
     handleKeyStates();
+    //glClearColor(1.0f,1.0f,1.0f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    camera->apply();
 
     //Position lights
     initLights();
+    camera->apply();
+    
+    //glBindTexture(GL_TEXTURE_2D, texIdFBO);
+    //glActiveTexture(GL_TEXTURE0);
+
+    //glBindFramebuffer(GL_FRAMEBUFFER, idFBO);
+    
+    //View position
     
     if (shaderMode) shaderProgram->bind();
-    
+
     GLuint programId    = shaderProgram->getShaderProgramId(); 
     GLuint nearLoc      = glGetUniformLocation(programId, "near");
     GLuint farLoc       = glGetUniformLocation(programId, "far");
+    GLuint texScaleLoc  = glGetUniformLocation(programId, "texScale"); 
+    GLuint texOffLoc    = glGetUniformLocation(programId, "texOffset"); 
+    GLuint uvALoc       = glGetAttribLocation(programId, "uvA");
 
     /**
      * Drawing floor
      */
     //Floor vertexs
     glNormal3f(0,0,1.0f);
-    glColor3f(0, 1.0, 0);
+    glColor3f(0, 1.0f, 0);
     glBegin(GL_QUADS);
         glVertex3f(-10,-10,0);
         glVertex3f(-10,10,0);
         glVertex3f(10,10,0);
         glVertex3f(10,-10,0);
     glEnd();
- 
-    shaderProgram->unbind();
 
-    if (shaderMode) shaderProgram->bind();
+    glNormal3f(0,1.0f,0);
+    glColor3f(0.5, 0.5, 0.5);
+    glBegin(GL_QUADS);
+        glVertexAttrib2f(uvALoc,0,0); glVertex3f(10,-10,0);
+        glVertexAttrib2f(uvALoc, 1,0); glVertex3f(-10,-10,0);
+        glVertexAttrib2f(uvALoc, 1,0.75); glVertex3f(-10,-10,15);
+        glVertexAttrib2f(uvALoc, 0,0.75); glVertex3f(10,-10,15);
+    glEnd();
+    
+    //shaderProgram->unbind();
+    //if (shaderMode) shaderProgram->bind();
     
     glColor3f(1.0, 0, 0);
     glTranslatef(5,2,2);
@@ -178,7 +208,7 @@ void idle () {
         FPS = counter;
         counter = 0;
         static char winTitle [64];
-        sprintf (winTitle, "3d - FPS: %d, Focal: %f, Aperture: %f", FPS, focal, aperture);
+        sprintf (winTitle, "3d - FPS: %d, Focal: %.2f, Aperture: %.1f", FPS, focal, fStop);
         glutSetWindowTitle (winTitle);
         lastTime = currentTime;
     }
@@ -188,13 +218,56 @@ void idle () {
     glutPostRedisplay ();
 }
 
+void initFBO()
+{
+    /*
+     * Frame Buffer Texture Creation
+     */
+    glGenTextures(1, &texIdFBO);
+    glBindTexture(GL_TEXTURE_2D, texIdFBO);
+
+    //Create texture
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
+
+    //Texture param
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    
+    /*
+     * Frame Buffer generation and bindings
+     */
+    glGenFramebuffers(1, &idFBO);
+    glBindFramebuffer(GL_FRAMEBUFFER, idFBO);
+    
+    //Texture binding
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texIdFBO, 0);
+
+    // Draw buffer (optionnal)
+    GLenum DrawBuffers[2] = {GL_COLOR_ATTACHMENT0};
+    glDrawBuffers(1, DrawBuffers);
+
+    /*
+     * Depth render buffer generation and binding
+     */
+    glGenRenderbuffers(1, &idDepthBuffer);
+    glBindRenderbuffer(GL_RENDERBUFFER, idDepthBuffer);
+    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCREEN_WIDTH, SCREEN_HEIGHT);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, idDepthBuffer);
+   
+    if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+        //Error
+        printf("Problem");
+    }
+
+    //Frame Buffer Unbind
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
 /*
  * Load textures to texIDs table
  */
 void initTextures()
 {
-//    glEnable(GL_TEXTURE_2D);
-//    glGenTextures(4, texIDs);
 }
 
 /**
@@ -232,7 +305,6 @@ void initMaterials()
 
     float shininess = 0.1f;
     glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, shininess * 128.0);
-    
 }
 
 /**
@@ -245,6 +317,12 @@ void initShaders()
     shaderProgram->addShaderFromFile("shader.frag");
     
 	shaderProgram->start();
+	
+    postShaderProgram = new ShaderProgram();
+	postShaderProgram->addShaderFromFile("post-shader.vert");
+    postShaderProgram->addShaderFromFile("post-shader.frag");
+    
+	postShaderProgram->start();
 }
 
 /**
@@ -346,18 +424,26 @@ void handleKeyStates()
         camera->zoom(dRho);
     }
     
-    // O : foal + / P : -
+    // O : focal + / P : -
     if (keyStates[111]) {
         focal += 0.1;
     }
-
     if (keyStates[112]) {
         focal -= 0.1;
-
         if (focal < 0) focal = 0;
     }
 
-    
+    // L/M : fStop +-
+    if (keyStates[108]) {
+        fStop += 0.1;
+        if (fStop > 20) fStop = 20;
+    }
+    if (keyStates[109]) {
+        fStop -= 0.1;
+        if (fStop < 2.8) fStop = 2.8;
+    }
+
+
     camera->computePosition();
 }
 

@@ -11,8 +11,6 @@ varying vec3 normal;
 varying vec3 position;
 varying vec2 uv;
 
-//layout (location = 0) out vec4 finalC;
-
 float getBlurDiameter(float depth)
 { 
     float d = depth * (far - near);
@@ -56,6 +54,6 @@ void main(void)
 
         finalC  += ambientI * baseC + diffuseI * baseC + specularI;
     }
-
-    gl_FragColor = finalC;
+   
+    gl_FragColor    = finalC;
 }
