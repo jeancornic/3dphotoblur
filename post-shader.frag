@@ -8,6 +8,7 @@ uniform float blurCoeff;
 uniform float PPM;
 
 uniform sampler2D imageTex;
+uniform sampler2D depthTex;
 
 varying vec3 normal;
 varying vec3 position;
@@ -62,5 +63,6 @@ void main(void)
     gl_FragColor    = finalC;
     */
 
-    gl_FragColor    = vec4(texture2D(imageTex, uv.xy).xyz, 1);
+    //gl_FragColor    = vec4(texture2D(imageTex, uv.xy).xyz, 1);
+    gl_FragColor    = vec4(texture2D(depthTex, uv.xy).xyz, 1);
 }

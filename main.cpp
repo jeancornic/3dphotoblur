@@ -24,12 +24,9 @@ static float t;
  * texture ids container
  */
 static GLuint texIDs[5];
+static GLuint texIdDepth;
 static GLuint texIdFBO;
 static GLuint idDepthBuffer;
-
-/**
- *
- */
 static GLuint idFBO;
 
 static ShaderProgram * shaderProgram;
@@ -121,27 +118,37 @@ void display()
 
     //Position lights
     initLights();
-    
-    glBindTexture(GL_TEXTURE_2D, texIdFBO);
+
+    /*
+     * First Pass : Render Scene to FrameBuffer
+     *                     Depth to FrameBuffer
+     */
+
+    //FrameBuffer Texture
     glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texIdFBO);
+
+    //DepthBuffer Texture
+//    glActiveTexture(GL_TEXTURE1);
+  //  glBindTexture(GL_TEXTURE_2D, texIdFBO);
 
     glBindFramebuffer(GL_FRAMEBUFFER, idFBO);
+    
     glClearColor(1.0f,1.0f,1.0f,1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+   
     camera->apply();
     
     if (shaderMode) shaderProgram->bind();
 
     GLuint programId    = shaderProgram->getShaderProgramId(); 
-    //GLuint nearLoc      = glGetUniformLocation(programId, "near");
-    //GLuint farLoc       = glGetUniformLocation(programId, "far");
     GLuint texScaleLoc  = glGetUniformLocation(programId, "texScale"); 
     GLuint texOffLoc    = glGetUniformLocation(programId, "texOffset"); 
- //   GLuint uvALoc       = glGetAttribLocation(programId, "uvA");
 
     /**
      * Drawing floor
      */
+
     //Floor vertexs
     glNormal3f(0,0,1.0f);
     glColor3f(0, 1.0f, 0);
@@ -192,6 +199,9 @@ void display()
 //    GLuint texOffLoc    = glGetUniformLocation(programId, "texOffset"); 
     GLuint imageTexLoc  = glGetUniformLocation(programId, "imageTex");
     glUniform1i(imageTexLoc, 0);
+    GLuint depthTexLoc  = glGetUniformLocation(programId, "depthTex");
+    glUniform1i(depthTexLoc, 1);
+
     GLuint uvALoc       = glGetAttribLocation(postProgramId, "uvA");
 
     glNormal3f(0,0,1);
@@ -255,11 +265,16 @@ void initFBO()
      */
     glGenTextures(1, &texIdFBO);
     glBindTexture(GL_TEXTURE_2D, texIdFBO);
-
-    //Create texture
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_RGB, GL_UNSIGNED_BYTE, 0);
-
-    //Texture param
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    
+    /**
+     * Depth texture
+     */
+    glGenTextures(1, &texIdDepth);
+    glBindTexture(GL_TEXTURE_2D, texIdDepth);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     
@@ -268,10 +283,8 @@ void initFBO()
      */
     glGenFramebuffers(1, &idFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, idFBO);
-    
-    //Texture binding
     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texIdFBO, 0);
-
+    //glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, texIdDepth, 0);
     // Draw buffer (optionnal)
     GLenum DrawBuffers[2] = {GL_COLOR_ATTACHMENT0};
     glDrawBuffers(1, DrawBuffers);
