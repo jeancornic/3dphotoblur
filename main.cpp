@@ -123,14 +123,16 @@ void display()
      * First Pass : Render Scene to FrameBuffer
      *                     Depth to FrameBuffer
      */
-
+    
     //FrameBuffer Texture
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, texIdFBO);
+    glEnable(GL_TEXTURE_2D);
 
     //DepthBuffer Texture
-//    glActiveTexture(GL_TEXTURE1);
-  //  glBindTexture(GL_TEXTURE_2D, texIdFBO);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, texIdDepth);
+    glEnable(GL_TEXTURE_2D);
 
     glBindFramebuffer(GL_FRAMEBUFFER, idFBO);
     
@@ -144,6 +146,20 @@ void display()
     GLuint programId    = shaderProgram->getShaderProgramId(); 
     GLuint texScaleLoc  = glGetUniformLocation(programId, "texScale"); 
     GLuint texOffLoc    = glGetUniformLocation(programId, "texOffset"); 
+    
+    //Bindings
+    GLuint postProgramId    = postShaderProgram->getShaderProgramId(); 
+    GLuint nearLoc          = glGetUniformLocation(postProgramId, "near");
+    GLuint farLoc           = glGetUniformLocation(postProgramId, "far");
+    //GLuint texScaleLoc  = glGetUniformLocation(programId, "texScale"); 
+    //GLuint texOffLoc    = glGetUniformLocation(programId, "texOffset"); 
+    GLuint imageTexLoc      = glGetUniformLocation(postProgramId, "imageTex");
+    GLuint depthTexLoc      = glGetUniformLocation(postProgramId, "depthTex");
+    glUniform1i(imageTexLoc, 0);
+    glUniform1i(depthTexLoc, 1);
+    glUniform1f(nearLoc, 1.0);
+    glUniform1f(farLoc, 100000.0);
+
 
     /**
      * Drawing floor
@@ -191,16 +207,6 @@ void display()
     gluLookAt(0, 20, 5, 0, -20, -5, 0, 0, 1);
    
     if (shaderMode) postShaderProgram->bind();
-    
-    GLuint postProgramId    = postShaderProgram->getShaderProgramId(); 
-    //GLuint nearLoc      = glGetUniformLocation(programId, "near");
-    //GLuint farLoc       = glGetUniformLocation(programId, "far");
-//    GLuint texScaleLoc  = glGetUniformLocation(programId, "texScale"); 
-//    GLuint texOffLoc    = glGetUniformLocation(programId, "texOffset"); 
-    GLuint imageTexLoc  = glGetUniformLocation(programId, "imageTex");
-    glUniform1i(imageTexLoc, 0);
-    GLuint depthTexLoc  = glGetUniformLocation(programId, "depthTex");
-    glUniform1i(depthTexLoc, 1);
 
     GLuint uvALoc       = glGetAttribLocation(postProgramId, "uvA");
 
@@ -232,7 +238,7 @@ void reshape(int w, int h)
     glLoadIdentity();
     glViewport(0, 0, w, h); //Entire window view port
 
-    gluPerspective(70, ratio, 0.1, 100000);
+    gluPerspective(70, ratio, 1, 100000);
 }
 
 /**
@@ -274,7 +280,10 @@ void initFBO()
      */
     glGenTextures(1, &texIdDepth);
     glBindTexture(GL_TEXTURE_2D, texIdDepth);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, 0);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
+    //glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SCREEN_WIDTH, SCREEN_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
+    glTexParameteri(GL_TEXTURE_2D, GL_DEPTH_TEXTURE_MODE, GL_INTENSITY);   
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     
@@ -284,18 +293,22 @@ void initFBO()
     glGenFramebuffers(1, &idFBO);
     glBindFramebuffer(GL_FRAMEBUFFER, idFBO);
     glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, texIdFBO, 0);
-    //glFramebufferTexture(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, texIdDepth, 0);
-    // Draw buffer (optionnal)
-    GLenum DrawBuffers[2] = {GL_COLOR_ATTACHMENT0};
-    glDrawBuffers(1, DrawBuffers);
+    glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, texIdDepth, 0);
+    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, texIdDepth);
+
+    // Draw buffer
+    GLenum drawBuffers[2] = {GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT};
+    glDrawBuffers(2, drawBuffers);
+
+    GLenum readBuffers[2] = {GL_DEPTH_ATTACHMENT};
+//    glReadBuffer();
 
     /*
      * Depth render buffer generation and binding
      */
-    glGenRenderbuffers(1, &idDepthBuffer);
-    glBindRenderbuffer(GL_RENDERBUFFER, idDepthBuffer);
-    glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCREEN_WIDTH, SCREEN_HEIGHT);
-    glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, idDepthBuffer);
+    //glGenRenderbuffers(1, &idDepthBuffer);
+    //glBindRenderbuffer(GL_RENDERBUFFER, idDepthBuffer);
+    //glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, SCREEN_WIDTH, SCREEN_HEIGHT);
    
     if(glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
         //Error

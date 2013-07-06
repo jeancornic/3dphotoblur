@@ -14,6 +14,12 @@ varying vec3 normal;
 varying vec3 position;
 varying vec2 uv;
 
+float linearizeDepth(vec2 uv)
+{
+    float z = texture2D(depthTex, uv).x;
+    return (2.0 * near) / (far + near - z * (far - near));   
+}
+
 float getBlurDiameter(float depth)
 { 
     float d = depth * (far - near);
@@ -63,6 +69,11 @@ void main(void)
     gl_FragColor    = finalC;
     */
 
+    float z = linearizeDepth(uv.xy);
+    //gl_FragColor    = vec4(z, z, z, 1);
     //gl_FragColor    = vec4(texture2D(imageTex, uv.xy).xyz, 1);
-    gl_FragColor    = vec4(texture2D(depthTex, uv.xy).xyz, 1);
+    float d       = texture2D(depthTex, uv.xy).x;
+    //gl_FragColor    = vec4(d, d, d, 1);
+    gl_FragColor    = vec4(texture2D(imageTex, uv.xy).xyz, 1);
+
 }
