@@ -77,16 +77,15 @@ vec4 blur(float blurD, int dir)
     }
 
     return color / (count);
-
 }
 
 void main(void)
 {
     vec4 color          = vec4(texture2D(imageTex, uv.xy).xyz, 1);
-    float MAX_BLUR      = 2.0;
+    float MAX_BLUR      = 10.0;
 
-    float depth;// = linearizeDepth(uv.xy);
-    depth       = texture2D(depthTex, uv).x;
+    float depth = linearizeDepth(uv.xy);
+    //depth       = texture2D(depthTex, uv).x;
     
     float blurD = getBlurDiameter(depth);
     blurD   = min(MAX_BLUR, floor(blurD));

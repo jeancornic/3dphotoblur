@@ -64,8 +64,8 @@ static bool keyStates[256] = {};
 static int polygonMode  = 0;
 static int shaderMode   = 3; 
 static int movingMode   = 0;
-static float focal      = 5.0;
-static float inFocus    = 10.0;
+static float focal      = 10.0;
+static float inFocus    = 20.0;
 static float fStop      = 2.8;
 static float blurCoeff;
 
