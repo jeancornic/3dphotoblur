@@ -13,8 +13,8 @@
 #include "Sphere.h"
 #include "Camera.h"
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
+#define SCREEN_WIDTH 1024
+#define SCREEN_HEIGHT 768
 
 static int screenWidth;
 static int screenHeight;
@@ -64,10 +64,10 @@ static bool keyStates[256] = {};
 static int polygonMode  = 0;
 static int shaderMode   = 3; 
 static int movingMode   = 0;
-static float focal      = 50.0;
-static float inFocus    = 1000.0;
+static float focal      = 5.0;
+static float inFocus    = 10.0;
 static float fStop      = 2.8;
-static float blurCoeff  = 2.8;
+static float blurCoeff;
 
 /**
  * Main function
@@ -99,7 +99,6 @@ int main(int argc, char* argv[], char* envp[])
     initMaterials();
     initScene();
     
-
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
     
@@ -139,6 +138,7 @@ void display()
     glBindTexture(GL_TEXTURE_2D, texIdDepth);
     glEnable(GL_TEXTURE_2D);
 
+    /*
     //Color texture
     glActiveTexture(GL_TEXTURE2);
     glBindTexture(GL_TEXTURE_2D, texIdBump[1]);
@@ -146,7 +146,8 @@ void display()
     //Bump mapping texture
     glActiveTexture(GL_TEXTURE3);
     glBindTexture(GL_TEXTURE_2D, texIdBump[2]);
-    
+    */
+
     glBindFramebuffer(GL_FRAMEBUFFER, idFBO);
     
     glClearColor(1.0f,1.0f,1.0f,1.0f);
@@ -160,41 +161,22 @@ void display()
     if (shaderMode) shaderProgram->bind();
 
     GLuint programId        = shaderProgram->getShaderProgramId(); 
-    GLuint bumpMappingLoc   = glGetAttribLocation(programId, "bumpMapping");
+    //GLuint bumpMappingLoc   = glGetAttribLocation(programId, "bumpMapping");
     GLuint texCoordsLoc     = glGetAttribLocation(programId, "texCoords");
-    GLuint texMapLoc        = glGetUniformLocation(programId, "texMap");
-    GLuint texColorLoc      = glGetUniformLocation(programId, "texColor");
-    glUniform1i(texMapLoc, 2);
-    glUniform1i(texColorLoc, 3);
+    //GLuint texMapLoc        = glGetUniformLocation(programId, "texMap");
+    //GLuint texColorLoc      = glGetUniformLocation(programId, "texColor");
+    //glUniform1i(texMapLoc, 2);
+    //glUniform1i(texColorLoc, 3);
     
     //Bindings
     GLuint postProgramId    = postShaderProgram->getShaderProgramId(); 
 
-    GLuint screenWHLoc      = glGetUniformLocation(postProgramId, "screenWH");
-    glUniform2i(screenWHLoc, screenWidth, screenHeight);
-    GLuint nearLoc          = glGetUniformLocation(postProgramId, "near");
-    GLuint farLoc           = glGetUniformLocation(postProgramId, "far");
-    GLuint inFocusLoc       = glGetUniformLocation(postProgramId, "inFocus");
-    GLuint blurCoeffLoc     = glGetUniformLocation(postProgramId, "blurCoeff");
-    GLuint PPMLoc           = glGetUniformLocation(postProgramId, "PPM");
-    
-    GLuint imageTexLoc      = glGetUniformLocation(postProgramId, "imageTex");
-    GLuint depthTexLoc      = glGetUniformLocation(postProgramId, "depthTex");
-    
-    glUniform1i(imageTexLoc, 0);
-    glUniform1i(depthTexLoc, 1);
-    glUniform1f(nearLoc, 1.0);
-    glUniform1f(farLoc, 100000.0);
-    glUniform1f(PPMLoc, 35);
-    glUniform1f(inFocusLoc, inFocus);
-    glUniform1f(blurCoeffLoc, blurCoeff);
-    
     /**
      * Drawing floor
      */
 
     //Floor vertexs
-    glVertexAttrib1f(bumpMappingLoc, 1.0);
+    //glVertexAttrib1f(bumpMappingLoc, 1.0);
     glNormal3f(0,0,1.0f);
     glColor3f(0, 1.0f, 0);
     glBegin(GL_QUADS);
@@ -204,7 +186,7 @@ void display()
         glVertexAttrib2f(texCoordsLoc,0,1); glVertex3f(10,-10,0);
     glEnd();
 
-    glVertexAttrib1f(bumpMappingLoc, 0.0);
+    //glVertexAttrib1f(bumpMappingLoc, 0.0);
     glNormal3f(0,1.0f,0);
     glColor3f(0.5, 0.5, 0.5);
     glBegin(GL_QUADS);
@@ -234,19 +216,37 @@ void display()
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    gluLookAt(0, 0,30, 0, 0, 0, 0, 1, 0);
+    gluLookAt(0, 0,20, 0, 0, 0, 0, 1, 0);
    
     if (shaderMode) postShaderProgram->bind();
 
+    GLuint screenWHLoc      = glGetUniformLocation(postProgramId, "screenWH");
+    GLuint nearLoc          = glGetUniformLocation(postProgramId, "near");
+    GLuint farLoc           = glGetUniformLocation(postProgramId, "far");
+    GLuint inFocusLoc       = glGetUniformLocation(postProgramId, "inFocus");
+    GLuint blurCoeffLoc     = glGetUniformLocation(postProgramId, "blurCoeff");
+    GLuint PPMLoc           = glGetUniformLocation(postProgramId, "PPM");
+    GLuint imageTexLoc      = glGetUniformLocation(postProgramId, "imageTex");
+    GLuint depthTexLoc      = glGetUniformLocation(postProgramId, "depthTex");
+    
+    glUniform2f(screenWHLoc, (float)screenWidth, (float)screenHeight);
+    glUniform1i(imageTexLoc, 0);
+    glUniform1i(depthTexLoc, 1);
+    glUniform1f(nearLoc, 1.0);
+    glUniform1f(farLoc, 100000.0);
+    glUniform1f(PPMLoc, 20.0);
+    glUniform1f(inFocusLoc, inFocus);
+    glUniform1f(blurCoeffLoc, blurCoeff);
+    
     GLuint uvALoc       = glGetAttribLocation(postProgramId, "uvA");
 
     glNormal3f(0,0,1);
     glColor3f(0.5, 0.5, 0.5);
     glBegin(GL_QUADS);
-        glVertexAttrib2f(uvALoc, 0,0); glVertex3f(-10,-10,0);
-        glVertexAttrib2f(uvALoc, 1,0); glVertex3f(10,-10,0);
-        glVertexAttrib2f(uvALoc, 1,1); glVertex3f(10,10,0);
-        glVertexAttrib2f(uvALoc, 0,1); glVertex3f(-10,10,0);
+        glVertexAttrib2f(uvALoc, 0,0); glVertex3f(-20,-15,0);
+        glVertexAttrib2f(uvALoc, 1,0); glVertex3f(20,-15,0);
+        glVertexAttrib2f(uvALoc, 1,1); glVertex3f(20,15,0);
+        glVertexAttrib2f(uvALoc, 0,1); glVertex3f(-20,15,0);
     glEnd();
 
     glutSwapBuffers();
@@ -270,7 +270,7 @@ void reshape(int w, int h)
     glLoadIdentity();
     glViewport(0, 0, w, h); //Entire window view port
 
-    gluPerspective(68, ratio, 1, 100000);
+    gluPerspective(70, ratio, 1, 100000);
 }
 
 /**
@@ -531,7 +531,7 @@ void handleKeyStates()
     }
     if (keyStates[109]) {
         fStop -= 0.1;
-        if (fStop < 2.8) fStop = 2.8;
+        if (fStop < 1.5) fStop = 1.5;
         updateBlur();
     }
 
@@ -565,10 +565,11 @@ void loadTexture(const char* file, GLuint * texid)
 
 void updateBlur()
 {
-    float inFocus;
     float ms = focal / (inFocus - focal);
 
     blurCoeff = focal * ms / fStop;
+
+    printf("%.2f %.2f %.2f\n", inFocus, ms, blurCoeff);
 }
 
 void printHelp()
