@@ -1,9 +1,13 @@
 #define NUM_LIGHTS 1
+#define HORIZONTAL 1
+#define VERTICAL 2
 
 //Depth of field parameters
+uniform vec2 screenWH;
+
 uniform float near;
 uniform float far;
-uniform float focus;
+uniform float inFocus;
 uniform float blurCoeff;
 uniform float PPM;
 
@@ -23,57 +27,59 @@ float linearizeDepth(vec2 uv)
 float getBlurDiameter(float depth)
 { 
     float d = depth * (far - near);
-    float diff = abs(d - focus);
-    float xdd = (d < focus) ? (focus - diff) : (focus + diff); 
+    float diff = abs(d - inFocus);
+    float xdd = (d < inFocus) ? (inFocus - diff) : (inFocus + diff); 
     
     float b = blurCoeff * (diff / xdd); 
-    
     return b * PPM; 
+}
+
+vec4 blur(float blurD, int dir)
+{
+    vec4 color = vec4(0,0,0,1);
+    
+    float pixelSize;
+
+    // Compute size of the pixel
+    if (dir = HORIZONTAL)
+        pixelSize = 1 / screenWH.x;
+    else
+        pixelSize = 1 / screenWH.y;
+
+    for (int i = 0; i < blurD; i++) {
+        float offset    = i - blurD / 2.0;
+        vec2 uvPixel    = uv + offset * pixelSize;
+
+        color   += vec4(texture2D(imageTex, uvPixel).xyz, 1);
+    }
+
+    return color;
 }
 
 void main(void)
 {
-    //depth
-    float depth = length(position) / (far - near);
+    vec4 color          = vec4(texture2D(imageTex, uv.xy).xyz, 1);
+    float MAX_BLUR      = 3.0;
 
-    /*
-    vec4 finalC = vec4(0,0,0,1);
+    float depth = linearizeDepth(uv.xy);
+    depth       = texture2D(depthTex, uv).x;
 
-    vec4 baseC  = gl_Color; //Or textured
-    
-    for (int i = 0; i < NUM_LIGHTS; i++) {
-        vec3 light      = normalize(gl_LightSource[i].position.xyz - position);
-        vec3 R          = normalize(-reflect(light, normal));
-
-        //ambient
-        vec4 ambientI   = gl_FrontMaterial.ambient * gl_LightSource[i].ambient;
-        vec4 diffuseI   = vec4(0,0,0,1);
-        vec4 specularI  = vec4(0,0,0,1);
-
-        //diffuse + specular
-        float lProduct  = dot(light, normal);
-
-        if (lProduct > 0.0) {
-            diffuseI    = gl_FrontMaterial.diffuse * gl_LightSource[i].diffuse
-                * lProduct;
-            
-            float shininess = gl_FrontMaterial.shininess;
-
-            specularI   = pow( max(0.0, dot(R, -position)), shininess ) *
-                gl_FrontMaterial.specular * gl_LightSource[i].specular;
-        }
-
-        finalC  += ambientI * baseC + diffuseI * baseC + specularI;
+    float blurD = getBlurDiameter(depth);
+    blurD   = min(MAX_BLUR, floor(blurD));
+ 
+    //Bluring
+    vec4 blurColor   = vec4(0);
+    if (blurD > 1.0) {
+        blurColor = blur(blurD, HORIZONTAL); 
+    } else {
+        blurColor = vec4(texture2D(imageTex, uv.xy).xyz, 1);
     }
    
-    gl_FragColor    = finalC;
-    */
+    float c = min(blurD / MAX_BLUR, 1.0);
 
-    float z = linearizeDepth(uv.xy);
-    //gl_FragColor    = vec4(z, z, z, 1);
+    gl_FragColor    = (1-c)*color + c * blurColor;
+
     //gl_FragColor    = vec4(texture2D(imageTex, uv.xy).xyz, 1);
-    float d       = texture2D(depthTex, uv.xy).x;
-    //gl_FragColor    = vec4(d, d, d, 1);
-    gl_FragColor    = vec4(texture2D(imageTex, uv.xy).xyz, 1);
-
+    //gl_FragColor    = vec4(depth, depth, depth, 1);
+    //gl_FragColor    = vec4(blurD, blurD, blurD, 1);
 }

@@ -5,6 +5,7 @@ varying vec3 position;
 varying vec2 uv;
 
 layout (location = 0) out vec4 finalC;
+//layout (location = 1) out vec4 depth;
 
 void main(void)
 {
@@ -35,4 +36,6 @@ void main(void)
         finalC  += ambientI * baseC + diffuseI * baseC + specularI;
     }
 
+    //Depth buffer
+    //depth   = length(position);
 }

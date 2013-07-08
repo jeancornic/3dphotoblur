@@ -16,6 +16,8 @@
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
 
+static int screenWidth;
+static int screenHeight;
 static int WindowName;
 static int FPS;
 static float t;
@@ -23,11 +25,12 @@ static float t;
 /*
  * texture ids container
  */
-static GLuint texIDs[5];
 static GLuint texIdDepth;
 static GLuint texIdFBO;
 static GLuint idDepthBuffer;
 static GLuint idFBO;
+
+static GLuint texIdBump[2];
 
 static ShaderProgram * shaderProgram;
 static ShaderProgram * postShaderProgram;
@@ -52,16 +55,20 @@ void keyboardUpFunc(unsigned char, int, int);
 void keyboardFunc(unsigned char, int, int);
 void specialFunc(int, int, int);
 void specialUpFunc(int, int, int);
+void updateBlur();
 
 void loadTexture(const char*, GLuint *);
 void printHelp();
 
 static bool keyStates[256] = {};
-static int polygonMode = 0;
-static int shaderMode = 3; 
-static int movingMode = 0;
-static float focal = 2;
-static float fStop = 2.8;
+static int polygonMode  = 0;
+static int shaderMode   = 3; 
+static int movingMode   = 0;
+static float focal      = 50.0;
+static float inFocus    = 1000.0;
+static float fStop      = 2.8;
+static float blurCoeff  = 2.8;
+
 /**
  * Main function
  * start display loop
@@ -98,6 +105,7 @@ int main(int argc, char* argv[], char* envp[])
     
     camera  = new Camera();
 
+    updateBlur();
     printHelp();
 
     glutMainLoop();
@@ -116,9 +124,6 @@ void display()
     glDepthFunc(GL_LESS);
     glEnable(GL_DEPTH_TEST);
 
-    //Position lights
-    initLights();
-
     /*
      * First Pass : Render Scene to FrameBuffer
      *                     Depth to FrameBuffer
@@ -134,6 +139,14 @@ void display()
     glBindTexture(GL_TEXTURE_2D, texIdDepth);
     glEnable(GL_TEXTURE_2D);
 
+    //Color texture
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, texIdBump[1]);
+    
+    //Bump mapping texture
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, texIdBump[2]);
+    
     glBindFramebuffer(GL_FRAMEBUFFER, idFBO);
     
     glClearColor(1.0f,1.0f,1.0f,1.0f);
@@ -141,40 +154,57 @@ void display()
    
     camera->apply();
     
+    //Position lights
+    initLights();
+    
     if (shaderMode) shaderProgram->bind();
 
-    GLuint programId    = shaderProgram->getShaderProgramId(); 
-    GLuint texScaleLoc  = glGetUniformLocation(programId, "texScale"); 
-    GLuint texOffLoc    = glGetUniformLocation(programId, "texOffset"); 
+    GLuint programId        = shaderProgram->getShaderProgramId(); 
+    GLuint bumpMappingLoc   = glGetAttribLocation(programId, "bumpMapping");
+    GLuint texCoordsLoc     = glGetAttribLocation(programId, "texCoords");
+    GLuint texMapLoc        = glGetUniformLocation(programId, "texMap");
+    GLuint texColorLoc      = glGetUniformLocation(programId, "texColor");
+    glUniform1i(texMapLoc, 2);
+    glUniform1i(texColorLoc, 3);
     
     //Bindings
     GLuint postProgramId    = postShaderProgram->getShaderProgramId(); 
+
+    GLuint screenWHLoc      = glGetUniformLocation(postProgramId, "screenWH");
+    glUniform2i(screenWHLoc, screenWidth, screenHeight);
     GLuint nearLoc          = glGetUniformLocation(postProgramId, "near");
     GLuint farLoc           = glGetUniformLocation(postProgramId, "far");
-    //GLuint texScaleLoc  = glGetUniformLocation(programId, "texScale"); 
-    //GLuint texOffLoc    = glGetUniformLocation(programId, "texOffset"); 
+    GLuint inFocusLoc       = glGetUniformLocation(postProgramId, "inFocus");
+    GLuint blurCoeffLoc     = glGetUniformLocation(postProgramId, "blurCoeff");
+    GLuint PPMLoc           = glGetUniformLocation(postProgramId, "PPM");
+    
     GLuint imageTexLoc      = glGetUniformLocation(postProgramId, "imageTex");
     GLuint depthTexLoc      = glGetUniformLocation(postProgramId, "depthTex");
+    
     glUniform1i(imageTexLoc, 0);
     glUniform1i(depthTexLoc, 1);
     glUniform1f(nearLoc, 1.0);
     glUniform1f(farLoc, 100000.0);
-
-
+    glUniform1f(PPMLoc, 35);
+    glUniform1f(inFocusLoc, inFocus);
+    glUniform1f(blurCoeffLoc, blurCoeff);
+    
     /**
      * Drawing floor
      */
 
     //Floor vertexs
+    glVertexAttrib1f(bumpMappingLoc, 1.0);
     glNormal3f(0,0,1.0f);
     glColor3f(0, 1.0f, 0);
     glBegin(GL_QUADS);
-        glVertex3f(-10,-10,0);
-        glVertex3f(-10,10,0);
-        glVertex3f(10,10,0);
-        glVertex3f(10,-10,0);
+        glVertexAttrib2f(texCoordsLoc,0,0); glVertex3f(-10,-10,0);
+        glVertexAttrib2f(texCoordsLoc,1,0); glVertex3f(-10,10,0);
+        glVertexAttrib2f(texCoordsLoc,1,1); glVertex3f(10,10,0);
+        glVertexAttrib2f(texCoordsLoc,0,1); glVertex3f(10,-10,0);
     glEnd();
 
+    glVertexAttrib1f(bumpMappingLoc, 0.0);
     glNormal3f(0,1.0f,0);
     glColor3f(0.5, 0.5, 0.5);
     glBegin(GL_QUADS);
@@ -204,7 +234,7 @@ void display()
 
     glMatrixMode(GL_MODELVIEW);
     glLoadIdentity();
-    gluLookAt(0, 20, 5, 0, -20, -5, 0, 0, 1);
+    gluLookAt(0, 0,30, 0, 0, 0, 0, 1, 0);
    
     if (shaderMode) postShaderProgram->bind();
 
@@ -213,10 +243,10 @@ void display()
     glNormal3f(0,0,1);
     glColor3f(0.5, 0.5, 0.5);
     glBegin(GL_QUADS);
-        glVertexAttrib2f(uvALoc, 0, 0); glVertex3f(10,10,0);
-        glVertexAttrib2f(uvALoc, 1,0); glVertex3f(-10,10,0);
-        glVertexAttrib2f(uvALoc, 1,1); glVertex3f(-10,-10,0);
-        glVertexAttrib2f(uvALoc, 0,1); glVertex3f(10,-10,0);
+        glVertexAttrib2f(uvALoc, 0,0); glVertex3f(-10,-10,0);
+        glVertexAttrib2f(uvALoc, 1,0); glVertex3f(10,-10,0);
+        glVertexAttrib2f(uvALoc, 1,1); glVertex3f(10,10,0);
+        glVertexAttrib2f(uvALoc, 0,1); glVertex3f(-10,10,0);
     glEnd();
 
     glutSwapBuffers();
@@ -232,13 +262,15 @@ void reshape(int w, int h)
         h = 1;
     }
 
-    float ratio = 1.0 * w / h;
+    float ratio  = 1.0 * w / h;
+    screenWidth  = w;
+    screenHeight = h;
 
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glViewport(0, 0, w, h); //Entire window view port
 
-    gluPerspective(70, ratio, 1, 100000);
+    gluPerspective(68, ratio, 1, 100000);
 }
 
 /**
@@ -297,11 +329,8 @@ void initFBO()
     glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, texIdDepth);
 
     // Draw buffer
-    GLenum drawBuffers[2] = {GL_COLOR_ATTACHMENT0, GL_DEPTH_ATTACHMENT};
-    glDrawBuffers(2, drawBuffers);
-
-    GLenum readBuffers[2] = {GL_DEPTH_ATTACHMENT};
-//    glReadBuffer();
+    GLenum drawBuffers[2] = {GL_COLOR_ATTACHMENT0};
+    glDrawBuffers(1, drawBuffers);
 
     /*
      * Depth render buffer generation and binding
@@ -324,6 +353,9 @@ void initFBO()
  */
 void initTextures()
 {
+    glGenTextures(2, texIdBump);
+    loadTexture("tileNormals.jpg", &texIdBump[0]);
+    loadTexture("tileColor.jpg", &texIdBump[1]);
 }
 
 /**
@@ -482,23 +514,26 @@ void handleKeyStates()
     
     // O : focal + / P : -
     if (keyStates[111]) {
-        focal += 0.1;
+        inFocus += 1;
+        updateBlur();
     }
     if (keyStates[112]) {
-        focal -= 0.1;
-        if (focal < 0) focal = 0;
+        inFocus -= 1;
+        if (inFocus < 0) inFocus = 0;
+        updateBlur();
     }
 
     // L/M : fStop +-
     if (keyStates[108]) {
         fStop += 0.1;
         if (fStop > 20) fStop = 20;
+        updateBlur();
     }
     if (keyStates[109]) {
         fStop -= 0.1;
         if (fStop < 2.8) fStop = 2.8;
+        updateBlur();
     }
-
 
     camera->computePosition();
 }
@@ -526,6 +561,14 @@ void loadTexture(const char* file, GLuint * texid)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 
+}
+
+void updateBlur()
+{
+    float inFocus;
+    float ms = focal / (inFocus - focal);
+
+    blurCoeff = focal * ms / fStop;
 }
 
 void printHelp()
