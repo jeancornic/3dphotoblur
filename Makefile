@@ -1,4 +1,4 @@
-TARGET = main
+TARGET = main.out
 SOURCES = main.cpp
 LIBS = -lGL -lGLU -lglut -lSOIL -lGLEW
 SRCS = ShaderProgram.cpp ShaderProgram.h Sphere.h Sphere.cpp Camera.h Camera.cpp
