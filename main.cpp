@@ -2,7 +2,7 @@
 #include <GL/glut.h>
 #include <GL/gl.h>
 
-#include <SOIL.h>
+#include <SOIL/SOIL.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
